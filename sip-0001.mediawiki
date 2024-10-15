@@ -1,0 +1,81 @@
+  SIP: 1
+  Title: SIP process, adapted from BIP process
+  Author: @buffrr (contact@buffrr.dev)
+  Status: Active
+  Type: Process
+  Created: 2024-10-15
+  License: BSD-2-Clause
+           OPL
+
+==Abstract==
+
+A Spaces Improvement Proposal (SIP) is a design document providing information to the Spaces Protocol community or describing a new feature for Spaces or its processes or environment. The SIP should provide a concise technical specification of the feature and a rationale for the feature.
+
+We intend SIPs to be the primary mechanisms for proposing new features, collecting community input on an issue, and documenting the design decisions that have gone into Spaces. The SIP author is responsible for building consensus within the community and documenting dissenting opinions.
+
+Because SIPs are maintained as text files in a versioned repository, their revision history is the historical record of the feature proposal.
+
+This particular SIP is adapted from Bitcoin Improvement Proposal (BIP) 002 to define a similar process for Spaces, which operates on Bitcoin. Credit goes to the Bitcoin BIP process for providing the foundation.
+
+==Copyright==
+
+This SIP is dual-licensed under the Open Publication License and BSD 2-clause license.
+
+==SIP workflow==
+
+The SIP process begins with a new idea for Spaces. Each potential SIP must have a champion -- someone who writes the SIP using the style and format described below, shepherds the discussions in the appropriate forums, and attempts to build community consensus around the idea. The SIP champion (a.k.a. Author) should first attempt to ascertain whether the idea is SIP-able.
+
+Small enhancements or patches to a particular piece of software often don't require standardization between multiple projects; these don't need a SIP and should be injected into the relevant project-specific development workflow with a patch submission to the applicable issue tracker.
+
+After investigating past work to make sure your idea have not been brought up in the past, the best way to proceed is by posting about the new idea to the appropriate community forums or mailing lists.
+
+Vetting an idea publicly before going as far as writing a SIP is meant to save both the potential author and the wider community time. Asking the Spaces community first if an idea is original helps prevent too much time being spent on something that is guaranteed to be rejected based on prior discussions. It also helps to make sure the idea is applicable to the entire community and not just the author.
+
+Once the champion has asked the Spaces community whether an idea has any chance of acceptance, a draft SIP should be presented for community review. This gives the author a chance to flesh out the draft SIP to make it properly formatted, of high quality, and to address additional concerns about the proposal. Following a discussion, the proposal should be submitted to the SIPs git repository as a pull request. This draft must be written in SIP style as described below and named with an alias such as "sip-johndoe-superfeature" until an editor has assigned it a SIP number (authors MUST NOT self-assign SIP numbers).
+
+SIP authors are responsible for collecting community feedback on both the initial idea and the SIP before submitting it for review. However, wherever possible, long open-ended discussions on public mailing lists should be avoided. Strategies to keep discussions efficient include setting up a separate SIG mailing list for the topic, having the SIP author accept private comments in the early design phases, setting up a wiki page or git repository, etc. SIP authors should use their discretion here.
+
+It is highly recommended that a single SIP contain a single key proposal or new idea. The more focused the SIP, the more successful it tends to be. If in doubt, split your SIP into several well-focused ones.
+
+When the SIP draft is complete, a SIP editor will assign the SIP a number, label it as Standards Track, Informational, or Process, and merge the pull request to the SIPs git repository. The SIP editors will not unreasonably reject a SIP. Reasons for rejecting SIPs include duplication of effort, disregard for formatting rules, being too unfocused or too broad, being technically unsound, not providing proper motivation or addressing backward compatibility, or not in keeping with the Spaces philosophy. For a SIP to be accepted, it must meet certain minimum criteria. It must be a clear and complete description of the proposed enhancement. The enhancement must represent a net improvement. The proposed implementation, if applicable, must be solid and must not complicate the protocol unduly.
+
+The SIP author may update the draft as necessary in the git repository. Updates to drafts should also be submitted by the author as pull requests.
+
+===Transferring SIP Ownership===
+
+It occasionally becomes necessary to transfer ownership of SIPs to a new champion. In general, we'd like to retain the original author as a co-author of the transferred SIP, but that's really up to the original author. A good reason to transfer ownership is because the original author no longer has the time or interest in updating it or following through with the SIP process, or has fallen off the face of the 'net (i.e., is unreachable or not responding to email). A bad reason to transfer ownership is because you don't agree with the direction of the SIP. We try to build consensus around a SIP, but if that's not possible, you can always submit a competing SIP.
+
+If you are interested in assuming ownership of a SIP, send a message asking to take over, addressed to both the original author and the SIP editors. If the original author doesn't respond to email in a timely manner, the SIP editors will make a unilateral decision (it's not like such decisions can't be reversed :).
+
+===SIP Editors===
+
+The SIP editors will be responsible for overseeing the SIP process and ensuring that SIPs follow the appropriate format and procedures.
+
+==SIP format and structure==
+
+Each SIP should have the following parts:
+
+* Preamble -- Headers containing metadata about the SIP (see below).
+* Abstract -- A short (~200 word) description of the technical issue being addressed.
+* Copyright -- The SIP must be explicitly licensed under acceptable copyright terms.
+* Specification -- The technical specification should describe the syntax and semantics of any new feature. The specification should be detailed enough to allow competing, interoperable implementations for any of the current Spaces platforms.
+* Motivation -- The motivation should clearly explain why the existing protocol is inadequate to address the problem that the SIP solves.
+* Rationale -- The rationale fleshes out the specification by describing what motivated the design and why particular design decisions were made. It should describe alternate designs that were considered and related work.
+* Backwards compatibility -- All SIPs that introduce backward incompatibilities must include a section describing these incompatibilities and their severity. The SIP must explain how the author proposes to deal with these incompatibilities.
+* Reference implementation -- The reference implementation must be completed before any SIP is given the status "Final", but it need not be completed before the SIP is accepted.
+
+==SIP types==
+
+There are three kinds of SIP:
+
+* A Standards Track SIP describes any change that affects most or all Spaces implementations, such as a change to the network protocol or transaction validity rules.
+* An Informational SIP describes a design issue or provides guidelines but does not propose a new feature.
+* A Process SIP describes a process surrounding Spaces, or proposes a change to a process or event in the ecosystem.
+
+==SIP status field==
+
+Each SIP must include a status field that reflects its current state. Possible statuses include Draft, Active, Proposed, Final, and Replaced.
+
+==See Also==
+
+* BIP 2: BIP Process

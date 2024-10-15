@@ -1,0 +1,101 @@
+  SIP: 2
+  Title: Bitcoin-Anchored DNS Resolution
+  Author: buffrr (contact@buffrr.dev)
+  Status: Draft
+  Type: Standards Track
+  Created: 2024-10-15
+  License: BSD-2-Clause
+  Discussions-To: [TBD]
+
+==Abstract==
+
+This document specifies a mechanism for resolving spaces over the Domain Name System (DNS). DNS allows for multiple independent namespaces through the use of class codes. To facilitate the resolution of space names without conflicting with existing domain names in the Internet (IN) class, spaces use the DNS class code 2 (CLASS2), a previously obsolete class originally designated for CSNET [RFC1035]. This document introduces a distinct naming syntax that uses the format <code><label>.<label1>.<subspace@space></code>, ensuring disambiguation between names in the IN class and those in CLASS2, even in cases where the class code is not specified.
+
+==Motivation==
+
+Rather than creating a new format for space records, we leverage the existing, globally standardized DNS framework, using CLASS2. DNS is already a mature system with widespread adoption and support, and its record structure is sufficient for decentralized use. This approach ensures compatibility with existing DNS tools while introducing a decentralized, Bitcoin-anchored namespace that provides ownership and security without the need for centralized intermediaries.
+
+Traditional DNS and DNSSEC rely on centralized authorities like registries and registrars to manage name resolution and ownership, creating a single point of control and trust. This centralization introduces dependencies on third parties, leaving users vulnerable to censorship, mismanagement, or other failures within the DNS hierarchy. A Bitcoin-based PKI eliminates these dependencies, enabling decentralized and trustless name resolution.
+
+Additionally, with advances in zk light clients, it becomes feasible for hardware wallets to easily verify and support these Bitcoin-anchored DNS records, enabling secure and lightweight validation in resource-constrained environments.
+
+
+==Specification==
+
+===Space Syntax===
+
+The Domain Name System (DNS) is inherently hierarchical, organizing domain names in a tree structure where each node (domain) can control its child nodes (subdomains). However, to maintain sovereignty in a decentralized naming protocol, it is essential that subspaces are not controlled by their parent. Instead, spaces and subspaces are positioned directly under the root, with ownership guarantees provided at the root level—Bitcoin.
+
+Spaces use the following convention for representing names:  
+<pre><label0>.<label1>.<subspace@space></pre>
+
+Where:
+
+* <code><subspace@space></code>: A single DNS label that combines both the space and subspace, separated by the <code>@</code> character.
+
+* <code><label0></code>, <code><label1></code>: Standard DNS labels representing hierarchical subdivisions underneath the top label.
+
+Rules:
+
+* The space and subspace MUST be encoded as a single top-level label. This ensures that spaces and subspaces are positioned directly under the root zone, with ownership guarantees provided at the root level.
+
+* Spaces and subspaces MUST consist only of lowercase alphanumeric characters (a-z, 0-9).
+
+* Binary Representation: Space names MUST use the exact binary representation of domain names as defined in RFC1035. The <code>@</code> character MUST be encoded as a literal character in the top label, even when there is no subspace name. For example, if there is no subspace, the name would be:  
+
+<pre><label0>.<label1>.@example</pre>
+
+===Reserved Spaces===
+
+The following spaces are reserved for local & experimental use. Resolvers MUST NOT attempt to query these names through other peers or using upstream resolvers.
+
+* @example
+* @test
+* @local
+
+===Reserved subspaces===
+
+To prevent ambiguity in name resolution while allowing space owners to include non-underscored nodes, the subspace <code>self</code> is reserved. Implementers SHOULD refuse to resolve any non-underscored names at the apex of a space's zone, except for the node <code>self</code>. This measure eliminates confusion in cases where the <code>@</code> symbol immediately follows a dot (<code>.</code>).
+
+
+For example, consider the following record defined in the <code>@example</code> zone:  
+
+<pre>bob.@example.  3600  CLASS2  TXT  "bob in @example apex"</pre>
+
+Although the notation <code>bob.@example</code> is syntactically distinct from <code>bob@example</code>, the immediate placement of the <code>@</code> symbol after the (<code>.</code>) may lead to misinterpretation. To eliminate such confusion, it is RECOMMENDED to allow only the <code>self</code> node to be resolvable at the zone apex. Therefore, spaces wishing to have non-underscored nodes in their apex SHOULD use <code>self</code>.
+
+<pre>self.@example 3600 CLASS2 TXT "self in @example apex"</pre>
+
+There is no risk of misinterpreting <code>self@example</code> with <code>self.@example</code>, as the subspace <code>self</code> is reserved. However, to maintain resolution consistency across various DNS software, <code>self@example</code> (without the dot) MUST NOT be interpreted as an alias for <code>self.@example</code> and, therefore, is NOT resolvable.
+
+
+
+==Rationale==
+
+The choice to use CLASS2 and introduce a new syntax for spaces is aimed at ensuring clear disambiguation from existing Internet domain names while maintaining compatibility with the DNS system. A DNS resolver could easily support both with clear seperation between centralized domains and Bitcoin-anchored spaces.
+
+The encoding of the <code>@</code> character for separating spaces and subspaces in the top label is used for several reasons:
+
+* It provides a simple and effective solution for handling delegations and ensuring sovereignty for spaces and subspaces, preventing hierarchical control by parent nodes.
+
+* It provides clear disambiguation at the binary level when a <code><domain-name></code> appears in the RDATA of DNS records like NS, CNAME, and SRV. While cross-class references MUST NOT be allowed, this approach offers future-proofing in case such rules are revised in later SIPs.
+
+* It maintains consistent syntax in zone files and DNS tools like "dig", eliminating the need to switch between dots and <code>@</code> characters, simplifying usage across DNS software.
+
+* It enhances interoperability by providing clear, unambiguous naming, simplifying implementations that support both IN and CLASS2, and reducing potential conflicts and confusion, even when the class code is not explicitly specified.
+
+We had previously considered using an email-like encoding such as the one used in SOA records and disallow a dot after the <code>@</code> character. However, the current approach addresses the issues explained above more effectively while keeping it simple and consistent.
+
+
+==Backwards Compatibility==
+
+This SIP introduces a new class (CLASS2) for resolving spaces, and as such, there are no backward compatibility concerns with the existing DNS system operating in the IN class. Existing DNS infrastructure and resolvers that are unaware of CLASS2 will not conflict with space name resolution.
+
+==Reference Implementation==
+
+Fabric - A Distributed DNS resolver anchored in Bitcoin: https://github.com/spacesprotocol/fabric
+
+
+==Copyright==
+
+This SIP is licensed under the BSD-2-Clause License.
