@@ -19,18 +19,19 @@ This document defines a Version-Type-Length-Value (VTLV) binary encoding scheme 
 
 | Type | Name | Description | Example Value |
 |------|------|-------------|---------------|
-| 0x00 | Nostr Pubkey | 64 hex digits (32 bytes) | `040e739ce127b6d77c34ea12e10245b72742a26c67ce0575c3b0add38dc297b4282` |
-| 0x01 | Nostr Relay WS | WebSocket relay (IP, DNS, Spaces) | `relay@primal` |
-| 0x02 | Nostr Relay WSS | Secure WebSocket relay (IP, DNS, Spaces) | `relay.primal.net` |
-| 0x03 | Pubky.app Pubkey | Pubky.app identifier | `7fmjpcuuzf54hw18bsgi3zihzyh4awseeuq5tmojefaezjbd64cy` |
-| 0x04 | Decentralized ID | DID identifier (68 bytes hex) | `did:btc1:k1q0rnnwf657vuu8trztlczvlmphjgc6q598h79cm6sp7c4fgqh0fkc0vzd9u:` |
-| 0x05 | DNS A Record | IPv4/IPv6 address as hex | IPv4/IPv6 hex representation |
-| 0x06 | DNS CNAME | Canonical name (DNS, Spaces) | `www.example.com`, `www@example` |
-| 0x07 | DNS SMTP | SMTP server address | `in1-smtp.messagingengine.com` |
-| 0x08 | DNS TXT | Arbitrary ASCII text | Any ASCII string |
-| 0x09 | Bitcoin Address | Bitcoin wallet address | `bc1pjeda67ewjtms6p20nk3udt6c5wwk90zzdlhd3dx73r8ynzsm07nqwxggmu` |
-| 0x0A | Ethereum Address | Ethereum wallet address | `0xC3P0F36260817d1c78C471406BdE482177a1935071` |
-| 0x0B-0x0F | Reserved | Unused types | Reserved for future use |
+| 0x00 | Owner URI | RPC Interface | `http://192.168.1.254:8080/v1/services/getspace` |
+| 0x01 | Owner Web | Info Website | `https://spacesops.com` |
+| 0x02 | Nostr Pubkey | 64 hex digits (32 bytes) | `040e739ce127b6d77c34ea12e10245b72742a26c67ce0575c3b0add38dc297b4282` |
+| 0x03 | Nostr Relay | WebSocket relay (IP, DNS, Spaces) | `wss://relay@primal,wss://relay.primal.net,ws://194.195.222.47:4848/` |
+| 0x04 | Pubky.app Pubkey | Pubky.app identifier | `pk:7fmjpcuuzf54hw18bsgi3zihzyh4awseeuq5tmojefaezjbd64cy` |
+| 0x05 | Decentralized ID | DID identifier (68 bytes hex) | `did:btc1:k1q0rnnwf657vuu8trztlczvlmphjgc6q598h79cm6sp7c4fgqh0fkc0vzd9u:` |
+| 0x06 | DNS A Record | IPv4/IPv6 address as hex | IPv4/IPv6 hex representation |
+| 0x07 | DNS CNAME | Canonical name (DNS, Spaces) | `www.example.com`, `www@example` |
+| 0x08 | DNS SMTP | SMTP server address | `in1-smtp.messagingengine.com` |
+| 0x09 | DNS TXT | Arbitrary ASCII text | Any ASCII string |
+| 0x0A | Bitcoin Address | Bitcoin wallet address | `bc1pjeda67ewjtms6p20nk3udt6c5wwk90zzdlhd3dx73r8ynzsm07nqwxggmu` |
+| 0x0B | Ethereum Address | Ethereum wallet address | `0xC3P0F36260817d1c78C471406BdE482177a1935071` |
+| 0x0C-0xFF | Reserved | Unused types | Reserved for future use |
 
 ## Payload Examples
 
