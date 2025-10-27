@@ -20,6 +20,11 @@ if (result === null) {
 
 // The first byte is the version byte
 
+// If the version is not 0x01, return null
+if (version !== 0x01) {
+    return null;
+}
+
 // While there is more bytes to process
     // Get the next byte as the type and following length byte
     // Get the value as the next length bytes of data
@@ -27,16 +32,14 @@ if (result === null) {
     // If the type is not recognized, return null
     // If the value is valid, interpret the value accordingly
     // Case type of:
-        // 0x01: Subname
-        // 0x02: Space
-        // 0x03: Data
-        // 0x04: Metadata
-        // 0x05: Signature
-        // 0x06: Public Key
-        // 0x07: Private Key
-        // 0x08: Hash
-        // 0x09: Address
+        // 0x00 | Owner URI | RPC Interface | `http://192.168.1.254:8080/v1/services/getspace` |
+        // 0x01 | Owner Web | Info Website | `https://spacesops.com` |
+        //0x02 | Nostr Pubkey | 64 hex digits (32 bytes) | `040e739ce127b6d77c34ea12e10245b72742a26c67ce0575c3b0add38dc297b4282` |
+        //0x03 | Nostr Relay | WebSocket relay (IP, DNS, Spaces) | `wss://relay@primal,wss://relay.primal.net,ws://194.195.222.47:4848/` |
 
+// Prior to proof commitment, only the space operator knows if a subname is valid or not.
+
+// If an operator gets a request for a handle for a space it doesn't control, does it act as a proxy and forward the request to the space operator?
 
 // If the hex string is not valid, return null
 return null;
