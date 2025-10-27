@@ -1,0 +1,31 @@
+  SIP: X
+  Title: Data format of getspace.covenant.data & getptr.data
+  Author: horologger (horologger@protonmail.com)
+  Status: Draft
+  Type: Standards Track
+  Created: 2025-10-27
+  License: BSD-2-Clause
+  Discussions-To: [TBD]
+
+
+==Abstract==
+
+
+==Motivation==
+
+
+==Specification==
+
+
+==Rationale==
+
+
+==Backwards Compatibility==
+
+
+==Reference Implementation==
+
+
+==Copyright==
+
+This SIP is licensed under the BSD-2-Clause License.
