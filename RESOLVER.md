@@ -39,7 +39,7 @@ if (version !== 0x01) {
 
 // Prior to proof commitment, only the space operator knows if a subname is valid or not.
 
-// If an operator gets a request for a handle for a space it doesn't control, does it act as a proxy and forward the request to the space operator?
+// If an operator gets a request for a handle for a space it doesn't control, does it act as a proxy and forward the request to the space operator?  Can it cache results?  If so for how long?
 
 // If information is not found in the "data", then try the fabric node net for data.
 //  Can a subspace owner create/sign/publish zones just for john@doe?
