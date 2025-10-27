@@ -41,6 +41,10 @@ if (version !== 0x01) {
 
 // If an operator gets a request for a handle for a space it doesn't control, does it act as a proxy and forward the request to the space operator?
 
+// If information is not found in the "data", then try the fabric node net for data.
+//  Can a subspace owner create/sign/publish zones just for john@doe?
+// If all this fails then return null.
+
 // If the hex string is not valid, return null
 return null;
 
