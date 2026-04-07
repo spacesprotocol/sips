@@ -29,4 +29,11 @@ Those proposing changes should consider that ultimately, consent may rest with t
 | @buffrr
 | Standard
 | Draft
+|-
+| [[sip-0007.mediawiki|7]]
+|
+| Records wire format
+| @buffrr
+| Standard
+| Draft
 |}
