@@ -35,5 +35,5 @@ Those proposing changes should consider that ultimately, consent may rest with t
 | Records wire format
 | @buffrr
 | Standard
-| Draft
+| Proposed
 |}
