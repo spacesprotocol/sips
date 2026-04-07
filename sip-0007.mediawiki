@@ -2,7 +2,7 @@
   SIP: 7
   Title: Records wire format
   Author: buffrr (contact@buffrr.dev)
-  Status: Draft
+  Status: Proposed
   Type: Standards Track
   Created: 2026-03-12
   License: BSD-2-Clause
