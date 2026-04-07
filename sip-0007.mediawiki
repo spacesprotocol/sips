@@ -225,7 +225,7 @@ Addresses and identity keys SHOULD use ADDR records so that handles can be disco
   { "type": "addr", "key": "nostr", "value": ["npub1abc...", "wss://relay.example.com"] },
   { "type": "blob", "key": "some-data", "value": "iVBORw0KGgo..." },
   { "type": "unknown", "rtype": 42, "rdata": "SGVsbG8gV29ybGQ..." },
-  { "type": "sig", "canonical": "@bitcoin", "handle": "alice@bitcoin", "sig": "deadbeef...", "flags": 1 }
+  { "type": "sig", "canonical": "alice@bitcoin", "handle": "alice@bitcoin", "sig": "deadbeef...", "flags": 1 }
 ]
 </pre>
 
