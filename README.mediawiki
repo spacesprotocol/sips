@@ -24,7 +24,7 @@ Those proposing changes should consider that ultimately, consent may rest with t
 | Active
 |-
 | [[sip-0002.mediawiki|2]]
-| Consensus
+| 
 | Bitcoin-Anchored DNS Resolution
 | @buffrr
 | Standard
