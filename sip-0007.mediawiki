@@ -40,7 +40,7 @@ Each record:
 
 '''RType''': Values <code>0x00</code>–<code>0xFE</code> are usable. <code>0xFF</code> is reserved.
 
-'''RData Length''': Bitcoin CompactSize encoding (<code>0x00</code>–<code>0xFC</code> = 1 byte, <code>0xFD</code> = 3 bytes, <code>0xFE</code> = 5 bytes, <code>0xFF</code> = 9 bytes, all little-endian).
+'''RData Length''': Bitcoin CompactSize encoding (<code>0x00</code>–<code>0xFC</code> = 1 byte, <code>0xFD</code> = 3 bytes, <code>0xFE</code> = 5 bytes, <code>0xFF</code> = 9 bytes, all little-endian). Implementations MUST use the shortest possible encoding for a given value and MUST reject non-minimal encodings. This ensures deterministic serialization.
 
 '''RData''': Record-type-specific payload.
 
@@ -166,8 +166,6 @@ Records in a record set MUST follow this ordering:
 # If present, SEQ MUST be the first record.
 # TXT, BLOB, ADDR, and unknown records may appear in any order.
 # If present, SIG MUST be the last record.
-
-Duplicate keys within the same record type SHOULD be rejected.
 
 ===Key Format (TXT, BLOB, and ADDR)===
 
@@ -304,17 +302,20 @@ fn read_compact_size(data: &[u8], pos: &mut usize) -> Result<u64, &'static str> 
         0x00..=0xFC => Ok(first as u64),
         0xFD => {
             if *pos + 2 > data.len() { return Err("unexpected eof"); }
-            let v = u16::from_le_bytes([data[*pos], data[*pos + 1]]);
-            *pos += 2; Ok(v as u64)
+            let v = u16::from_le_bytes([data[*pos], data[*pos + 1]]) as u64;
+            if v < 0xFD { return Err("non-minimal compact size"); }
+            *pos += 2; Ok(v)
         }
         0xFE => {
             if *pos + 4 > data.len() { return Err("unexpected eof"); }
-            let v = u32::from_le_bytes(data[*pos..*pos + 4].try_into().unwrap());
-            *pos += 4; Ok(v as u64)
+            let v = u32::from_le_bytes(data[*pos..*pos + 4].try_into().unwrap()) as u64;
+            if v < 0x10000 { return Err("non-minimal compact size"); }
+            *pos += 4; Ok(v)
         }
         0xFF => {
             if *pos + 8 > data.len() { return Err("unexpected eof"); }
             let v = u64::from_le_bytes(data[*pos..*pos + 8].try_into().unwrap());
+            if v < 0x100000000 { return Err("non-minimal compact size"); }
             *pos += 8; Ok(v)
         }
     }
