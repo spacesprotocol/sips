@@ -1,0 +1,362 @@
+<pre>
+  SIP: 7
+  Title: Records wire format
+  Author: buffrr (contact@buffrr.dev)
+  Status: Draft
+  Type: Standards Track
+  Created: 2026-03-12
+  License: BSD-2-Clause
+  Discussions-To: [TBD]
+</pre>
+
+==Abstract==
+
+A compact binary record format for publishing structured data in handles.
+
+==Motivation==
+
+Handles need a standard way to associate structured metadata — payment addresses, cryptographic identities, contact information — with a given name. Without a common wire format, each application would invent its own encoding, leading to fragmentation and interoperability failures. This SIP defines a minimal, extensible binary record format.
+
+==Specification==
+
+===Wire Format===
+
+A record set is a concatenation of records:
+
+<pre>
++------------+------------+--- - -
+| Record 0   | Record 1   | ...
++------------+------------+--- - -
+</pre>
+
+Each record:
+
+<pre>
++---------+----------------+-----------+
+|  RType  |  RData Length  |   RData   |
+| 1 byte  |  CompactSize   |  variable |
++---------+----------------+-----------+
+</pre>
+
+'''RType''': A one-byte record type.
+
+'''RData Length''': Bitcoin CompactSize encoding (<code>0x00</code>–<code>0xFC</code> = 1 byte, <code>0xFD</code> = 3 bytes, <code>0xFE</code> = 5 bytes, <code>0xFF</code> = 9 bytes, all little-endian). Implementations MUST use the shortest possible encoding for a given value and MUST reject non-minimal encodings.
+
+'''RData''': Record-type-specific payload.
+
+
+Implementations MUST verify that all record boundaries (<code>RType + RData Length + RData</code>) are valid across the record set; that is, there are enough bytes to cover the declared RData length for each record.
+
+Unknown record types MUST be parseable using the length field so that later records remain reachable.
+
+Malformed RData in a known record type MUST NOT invalidate parsing of subsequent records in an otherwise valid record set.
+
+Malformed known records and unknown record types MUST have identical effect on record-set interpretation: they contribute no semantics and MUST be ignored for interpretation purposes. Implementations MAY surface malformed records distinctly from unknown record types for diagnostic purposes.
+
+===Record Types===
+
+This specification assigns the following one-byte record types:
+
+* <code>0x00</code> — SEQ
+* <code>0x01</code> — TXT
+* <code>0x02</code> — BLOB
+* <code>0x04</code> — SIG
+* <code>0x05</code> — ADDR
+
+Other values MUST be parsed as unknown record types.
+
+Additional record types MAY be assigned in a future SIP. Type <code>0xFF</code> MUST NOT be assigned except by a SIP that defines its extension semantics.
+
+====SEQ — Sequence Record====
+
+A monotonically increasing version number for the record set. Used by off-chain protocols to determine which version of a record set is newer. Higher values are newer; there is no wraparound arithmetic.
+
+RType: <code>0x00</code>
+
+<pre>
++-------------------+
+|     version       |
+|   CompactSize     |
++-------------------+
+</pre>
+
+The version is encoded as a CompactSize integer, supporting values from 0 to 2<sup>64</sup>-1. Small sequence numbers (0–252) require only a single byte of payload.
+
+A SEQ record's RData MUST consist of exactly one CompactSize integer and nothing else. Non-minimal CompactSize encodings, truncation, or trailing bytes make the SEQ record malformed.
+
+A record set MUST contain at most one SEQ record. If present, it MUST be the first record. Implementations MUST reject record sets containing a SEQ record in any other position or containing more than one SEQ record.
+
+====TXT — Text Record====
+
+A key with zero or more UTF-8 string values.
+
+RType: <code>0x01</code>
+
+<pre>
++------------+---------------+-------------------------------+
+|  key_len   |     key       |          values               |
+|  1 byte    |  key_len B    |  CompactSize-prefixed strings |
++------------+---------------+-------------------------------+
+</pre>
+
+The values portion consists of zero or more strings, each encoded as a CompactSize length followed by that many UTF-8 bytes:
+
+<pre>
++------------------+----------+------------------+----------+--- - -
+|  value_0 length  |  value_0 |  value_1 length  |  value_1 | ...
+|  CompactSize     |  bytes   |  CompactSize     |  bytes   |
++------------------+----------+------------------+----------+--- - -
+</pre>
+
+A zero-length string is valid (CompactSize <code>0x00</code> with no following bytes).
+
+The values section MUST be fully consumed by a sequence of CompactSize-prefixed UTF-8 strings. Invalid UTF-8, truncated strings, trailing bytes, or non-minimal CompactSize encodings make the TXT record malformed.
+
+====BLOB — Binary Record====
+
+A key with a raw byte value. Uses the same key prefix as TXT (1-byte key length followed by the key), but the value is the remaining bytes rather than CompactSize-prefixed strings.
+
+RType: <code>0x02</code>
+
+<pre>
++------------+---------------+-------------------+
+|  key_len   |     key       |      value        |
+|  1 byte    |  key_len B    |  remaining bytes  |
++------------+---------------+-------------------+
+</pre>
+
+The value length is derived from the data: <code>data_length - 1 - key_len</code>. A zero-length value is valid.
+
+When serialized to JSON, BLOB values SHOULD be encoded as base64.
+
+====SIG — Signature Record====
+
+A signature binding the record set to a canonical name and handle.
+
+RType: <code>0x04</code>
+
+<pre>
++---------+-------------+------------+-----------+
+|  flags  |  canonical  |   handle   |    sig    |
+| 1 byte  |   SName     |   SName    | remaining |
++---------+-------------+------------+-----------+
+</pre>
+
+An '''SName''' uses DNS wire-style name encoding: a sequence of length-prefixed labels terminated by a zero byte. Labels MUST NOT exceed 62 bytes. The empty name is encoded as a single zero byte. Because SName is self-delimiting, two consecutive SNames can be decoded unambiguously from left to right.
+
+'''flags''': A single byte of bit flags. The following flag is defined:
+
+* <code>0x01</code> (<code>SIG_PRIMARY_ZONE</code>): Marks the signed zone as primary, creating a reverse mapping for numeric id to name.
+
+'''canonical''': The flattened canonical name of the signed zone as an SName. For spaces and ordinary handles, it is the same as the handle name (for example, <code>alice@bitcoin</code>). When a handle issues subhandles, the parent handle portion is replaced by its numeric identifier in canonical form. For example, if <code>alice@bitcoin</code> has numeric identifier <code>#800-12-12</code>, then the handle <code>sub.alice@bitcoin</code> has canonical name <code>sub#800-12-12</code>.
+
+'''handle''': The handle name as an SName (for example, <code>sub.alice@bitcoin</code>).
+
+'''sig''': The raw signature bytes (remaining bytes after canonical and handle). This specification does not impose a signature length. Current implementations use a 64-byte Schnorr signature.
+
+Invalid SName encoding in either <code>canonical</code> or <code>handle</code> makes the SIG record malformed.
+
+A record set MUST contain at most one SIG record. If present, it MUST be the last record. Implementations MUST reject record sets containing a SIG record in any other position or containing more than one SIG record.
+
+When computing signable bytes, the signed content includes all preceding records plus the SIG metadata (<code>flags</code>, <code>canonical</code>, and <code>handle</code>) but excludes the raw signature bytes.
+
+'''Future signature types:''' A future SIP MAY define additional signature record types. If a record set contains both a future signature record type and a legacy SIG record, the future signature record SHOULD appear immediately before SIG. Parsers that do not recognize the new type will ignore it and continue to the trailing SIG record.
+
+====ADDR — Address Record====
+
+A key-value record with the same wire format as TXT, tagged for reverse-index construction. Implementations that maintain an index SHOULD map each ADDR value back to the handle whose record set contains it, enabling queries of the form "which handles list this address?"
+
+ADDR records express a unidirectional claim: the handle owner asserts an association with the given address or public key. This does '''not''' imply that the referenced identity has endorsed or verified the association. Bidirectional verification is out of scope for this specification; applications MAY layer their own verification on top of the reverse index.
+
+RType: <code>0x05</code>
+
+<pre>
++------------+---------------+-------------------------------+
+|  key_len   |     key       |          values               |
+|  1 byte    |  key_len B    |  CompactSize-prefixed strings |
++------------+---------------+-------------------------------+
+</pre>
+
+Values are encoded identically to TXT records (CompactSize-prefixed UTF-8 strings).
+
+Invalid UTF-8, truncated strings, trailing bytes, or non-minimal CompactSize encodings make the ADDR record malformed.
+
+===Record Ordering===
+
+Records in a record set MUST follow this ordering:
+
+# If present, SEQ MUST be the first record.
+# Records other than SEQ and SIG may appear in any order unless specified otherwise by a future SIP.
+# If present, SIG MUST be the last record.
+
+These ordering rules are based on record type alone and apply even if a known record's RData is malformed.
+
+===Key Format (TXT, BLOB, and ADDR)===
+
+Keys in TXT, BLOB, and ADDR records are case-sensitive and MUST consist only of lowercase ASCII letters, digits, and hyphens (<code>a-z</code>, <code>0-9</code>, <code>-</code>). Keys MUST NOT be empty and MUST NOT exceed 255 bytes.
+
+Implementations MUST reject records with keys containing uppercase letters or other characters outside this set.
+
+Duplicate keys are allowed. This specification preserves record order and does not define any merge semantics for repeated keys.
+
+===Recommended Records===
+
+====Addresses & Identity (ADDR)====
+
+Addresses and identity keys SHOULD use ADDR records so that handles can be discovered via reverse lookups (e.g. finding the handle associated with a given <code>npub</code> or <code>bc1q</code> address). ADDR records support multiple values per key — for example, a Nostr ADDR record can include both the public key and relay hints.
+
+{| class="wikitable"
+! Key !! Value !! Example
+|-
+| btc || Bitcoin address || <code>["bc1q..."]</code>
+|-
+| eth || Ethereum address || <code>["0x..."]</code>
+|-
+| ln || BOLT 12 offer || <code>["lno1..."]</code>
+|-
+| nostr || Nostr public key, optional relay hints || <code>["npub1...", "wss://relay.example.com"]</code>
+|-
+| tor || v3 onion address || <code>["pg6mm...d.onion"]</code>
+|-
+| ssh || SSH public key || <code>["ssh-ed25519 AAAA..."]</code>
+|-
+| pgp || PGP fingerprint (hex) || <code>["3e7ba00a1b47..."]</code>
+|-
+| age || age encryption public key || <code>["age1..."]</code>
+|-
+| did || Decentralized Identifier || <code>["did:key:z6Mk..."]</code>
+|-
+| hyper || HyperDHT public key (hex) || <code>["a1b2c3..."]</code>
+|-
+| bep44 || BEP 44 public key (hex) || <code>["d4e5f6..."]</code>
+|}
+
+====General (TXT)====
+
+{| class="wikitable"
+! Key !! Value !! Example
+|-
+| website || URL || <code>["https://example.com"]</code>
+|-
+| note || Free-form text || <code>["Hello, world!"]</code>
+|}
+
+===JSON Representation===
+
+<pre>
+[
+  { "type": "seq", "version": 1 },
+  { "type": "txt", "key": "website", "value": ["https://example.com"] },
+  { "type": "addr", "key": "btc", "value": ["bc1q..."] },
+  { "type": "addr", "key": "nostr", "value": ["npub1abc...", "wss://relay.example.com"] },
+  { "type": "blob", "key": "some-data", "value": "iVBORw0KGgo..." },
+  { "type": "unknown", "rtype": 42, "rdata": "SGVsbG8gV29ybGQ..." },
+  { "type": "sig", "canonical": "alice@bitcoin", "handle": "alice@bitcoin", "sig": "deadbeef...", "flags": 1 }
+]
+</pre>
+
+The <code>type</code> field MUST be lowercase (<code>"seq"</code>, <code>"txt"</code>, <code>"blob"</code>, <code>"addr"</code>, <code>"sig"</code>, <code>"unknown"</code>). TXT and ADDR values are JSON arrays of strings. BLOB values and unknown record data are base64 encoded. SIG signatures are hex encoded.
+
+==Rationale==
+
+The format uses string-keyed TXT, ADDR, and BLOB records rather than assigning a numeric type to each use case. Recommended keys use standard community text encodings (e.g. <code>npub1...</code> for Nostr, <code>bc1q...</code> for Bitcoin) rather than raw binary because these encodings are self-describing and version-safe — a <code>bc1q</code> prefix distinguishes segwit v0 from <code>bc1p</code> (v1) without out-of-band context.
+
+TXT and ADDR values are encoded as a list of CompactSize-prefixed strings rather than a single string, similar to how DNS TXT records carry multiple character-strings per RDATA. This allows multiple values per key (e.g. a Nostr ADDR record carrying both a public key and relay hints). ADDR is a separate type from TXT so that implementations can identify which records to reverse-index without interpreting record semantics. The distinct type byte is sufficient for an indexer to build and maintain a reverse mapping from address values to handles.
+
+The SIG record enables off-chain authentication of record sets. By requiring it to be the last record and defining signable bytes as everything up to (but excluding) the raw signature, verification is straightforward: parse records, extract the SIG, and verify the signature over the prefix. The <code>SIG_PRIMARY_ZONE</code> flag supports reverse mapping from numeric identifiers to names.
+
+Bitcoin CompactSize is used for both the data length field and the SEQ version, keeping the common case (small values) to a single overhead byte while supporting the full <code>u64</code> range.
+
+
+==Backwards Compatibility==
+
+This is a new format with no prior deployed version.
+
+Forward compatibility is provided by the record length field: unassigned record types can be skipped and preserved without affecting later records.
+
+Malformed RData in known record types do not change record boundaries, so later records remain reachable. For interpretation purposes, malformed known records and unknown record types are treated identically: both are ignored.
+
+==Reference Implementation==
+
+The following example demonstrates boundary and record-set validation of a record set. It verifies that all record boundaries are consistent and that SEQ/SIG ordering constraints are met, treating all records as opaque <code>(rtype, rdata)</code> pairs.
+
+A full reference implementation with per-record RData parsing is available at [https://github.com/spacesprotocol/spaces/tree/subspaces/sip7 github.com/spacesprotocol/spaces] (sip7).
+
+<pre>
+const TYPE_SEQ: u8 = 0x00;
+const TYPE_SIG: u8 = 0x04;
+
+struct RawRecord<'a> {
+    rtype: u8,
+    rdata: &'a [u8],
+}
+
+/// Structurally validates a record set and returns the raw records.
+/// Verifies all boundaries are consistent and ordering constraints are met.
+fn validate(data: &[u8]) -> Result<Vec<RawRecord>, &'static str> {
+    let mut pos = 0;
+    let mut records = Vec::new();
+    let mut seen_seq = false;
+    let mut seen_sig = false;
+
+    while pos < data.len() {
+        let rtype = data[pos];
+        pos += 1;
+
+        let len = read_compact_size(data, &mut pos)? as usize;
+        if pos + len > data.len() { return Err("data overflow"); }
+        let rdata = &data[pos..pos + len];
+        pos += len;
+
+        if seen_sig { return Err("sig must be last"); }
+
+        if rtype == TYPE_SEQ {
+            if seen_seq { return Err("duplicate seq"); }
+            if !records.is_empty() { return Err("seq must be first"); }
+            seen_seq = true;
+        }
+        if rtype == TYPE_SIG {
+            if seen_sig { return Err("duplicate sig"); }
+            seen_sig = true;
+        }
+
+        records.push(RawRecord { rtype, rdata });
+    }
+    Ok(records)
+}
+
+fn read_compact_size(data: &[u8], pos: &mut usize) -> Result<u64, &'static str> {
+    if *pos >= data.len() { return Err("unexpected eof"); }
+    let first = data[*pos];
+    *pos += 1;
+    match first {
+        0x00..=0xFC => Ok(first as u64),
+        0xFD => {
+            if *pos + 2 > data.len() { return Err("unexpected eof"); }
+            let v = u16::from_le_bytes([data[*pos], data[*pos + 1]]) as u64;
+            if v < 0xFD { return Err("non-minimal compact size"); }
+            *pos += 2; Ok(v)
+        }
+        0xFE => {
+            if *pos + 4 > data.len() { return Err("unexpected eof"); }
+            let v = u32::from_le_bytes(data[*pos..*pos + 4].try_into().unwrap()) as u64;
+            if v < 0x10000 { return Err("non-minimal compact size"); }
+            *pos += 4; Ok(v)
+        }
+        0xFF => {
+            if *pos + 8 > data.len() { return Err("unexpected eof"); }
+            let v = u64::from_le_bytes(data[*pos..*pos + 8].try_into().unwrap());
+            if v < 0x100000000 { return Err("non-minimal compact size"); }
+            *pos += 8; Ok(v)
+        }
+    }
+}
+</pre>
+
+==Acknowledgments==
+
+This SIP builds on prior work by [https://github.com/horologger horologger], with VTLV format [https://github.com/horologger/spaces-vtlv reference implementation].
+
+==Copyright==
+
+This SIP is licensed under the BSD-2-Clause License.
