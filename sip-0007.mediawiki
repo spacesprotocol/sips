@@ -44,7 +44,12 @@ Each record:
 
 '''RData''': Record-type-specific payload.
 
-Unknown types MUST be skipped using the length field and MUST be preserved when rewriting. Malformed data MUST cause the entire record set to be rejected.
+Parsing is split into two phases:
+
+# '''Structural validation''': Implementations MUST verify that all record boundaries (RType + RData Length + RData) are consistent across the entire record set. A record set with invalid boundaries MUST be rejected.
+# '''RData parsing''': Malformed RData within a structurally valid record MUST NOT invalidate other records in the set. Implementations SHOULD treat records with unparseable RData as opaque (similar to unknown types) and continue processing subsequent records.
+
+Unknown record types MUST be parseable using the length field to maintain forward compatibility.
 
 ===Record Types===
 
@@ -219,8 +224,8 @@ Addresses and identity keys SHOULD use ADDR records so that handles can be disco
   { "type": "addr", "key": "btc", "value": ["bc1q..."] },
   { "type": "addr", "key": "nostr", "value": ["npub1abc...", "wss://relay.example.com"] },
   { "type": "blob", "key": "some-data", "value": "iVBORw0KGgo..." },
-  { "type": "sig", "canonical": "@bitcoin", "handle": "alice@bitcoin", "sig": "deadbeef...", "flags": 1 },
-  { "type": "unknown", "rtype": 42, "rdata": "SGVsbG8gV29ybGQ..." }
+  { "type": "unknown", "rtype": 42, "rdata": "SGVsbG8gV29ybGQ..." },
+  { "type": "sig", "canonical": "@bitcoin", "handle": "alice@bitcoin", "sig": "deadbeef...", "flags": 1 }
 ]
 </pre>
 
@@ -240,120 +245,55 @@ Type <code>0xFF</code> is reserved as an extension prefix so that the single-byt
 
 ==Backwards Compatibility==
 
-This is a new format with no prior deployed version. Implementations that encounter unknown record types MUST skip them using the length field, ensuring forward compatibility as new types are defined.
+This is a new format with no prior deployed version. Unknown record types are parseable using the length field, ensuring forward compatibility as new types are defined.
 
 ==Reference Implementation==
 
+The following example demonstrates structural validation of a record set. It verifies that all record boundaries are consistent and that SEQ/SIG ordering constraints are met, treating all records as opaque <code>(rtype, rdata)</code> pairs.
+
+A full reference implementation with RData parsing is available at [https://github.com/spacesprotocol/spaces/tree/subspaces/sip7 github.com/spacesprotocol/spaces] (sip7).
+
 <pre>
 const TYPE_SEQ: u8 = 0x00;
-const TYPE_TXT: u8 = 0x01;
-const TYPE_BLOB: u8 = 0x02;
-const TYPE_ADDR: u8 = 0x05;
+const TYPE_SIG: u8 = 0x04;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Record {
-    Seq(u64),
-    Txt { key: String, value: Vec<String> },
-    Blob { key: String, value: Vec<u8> },
-    Addr { key: String, value: Vec<String> },
-    Unknown { rtype: u8, rdata: Vec<u8> },
+struct RawRecord<'a> {
+    rtype: u8,
+    rdata: &'a [u8],
 }
 
-/// Record set iterator.
-///
-/// ```
-/// for record in RecordIter::new(data) {
-///     match record {
-///         Ok(Record::Seq(version)) => println!("seq: {version}"),
-///         Ok(Record::Txt { key, value }) => println!("{key}: {value:?}"),
-///         Ok(Record::Addr { key, value }) => println!("{key}: {value:?}"),
-///         Ok(Record::Blob { key, value }) => println!("{key}: ({} bytes)", value.len()),
-///         Ok(Record::Unknown { rtype, .. }) => println!("unknown type: 0x{rtype:02x}"),
-///         Err(e) => eprintln!("parse error: {e}"),
-///     }
-/// }
-/// ```
-pub struct RecordIter<'a> {
-    data: &'a [u8],
-    pos: usize,
-    index: usize,
-    seen_seq: bool,
-}
+/// Structurally validates a record set and returns the raw records.
+/// Verifies all boundaries are consistent and ordering constraints are met.
+fn validate(data: &[u8]) -> Result<Vec<RawRecord>, &'static str> {
+    let mut pos = 0;
+    let mut records = Vec::new();
+    let mut seen_seq = false;
+    let mut seen_sig = false;
 
-impl<'a> RecordIter<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
-        Self { data, pos: 0, index: 0, seen_seq: false }
+    while pos < data.len() {
+        let rtype = data[pos];
+        pos += 1;
+
+        let len = read_compact_size(data, &mut pos)? as usize;
+        if pos + len > data.len() { return Err("data overflow"); }
+        let rdata = &data[pos..pos + len];
+        pos += len;
+
+        if seen_sig { return Err("sig must be last"); }
+
+        if rtype == TYPE_SEQ {
+            if seen_seq { return Err("duplicate seq"); }
+            if !records.is_empty() { return Err("seq must be first"); }
+            seen_seq = true;
+        }
+        if rtype == TYPE_SIG {
+            if seen_sig { return Err("duplicate sig"); }
+            seen_sig = true;
+        }
+
+        records.push(RawRecord { rtype, rdata });
     }
-}
-
-impl<'a> Iterator for RecordIter<'a> {
-    type Item = Result<Record, &'static str>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos >= self.data.len() { return None; }
-
-        let t = self.data[self.pos];
-        self.pos += 1;
-
-        let len = match read_compact_size(self.data, &mut self.pos) {
-            Ok(v) => v as usize,
-            Err(e) => return Some(Err(e)),
-        };
-        if self.pos + len > self.data.len() { return Some(Err("data overflow")); }
-        let rdata = &self.data[self.pos..self.pos + len];
-        self.pos += len;
-
-        let record = match t {
-            TYPE_SEQ => {
-                if self.seen_seq { return Some(Err("duplicate seq")); }
-                if self.index > 0 { return Some(Err("seq must be first")); }
-                self.seen_seq = true;
-                let mut rpos = 0;
-                match read_compact_size(rdata, &mut rpos) {
-                    Ok(v) => Ok(Record::Seq(v)),
-                    Err(e) => Err(e),
-                }
-            }
-            TYPE_TXT | TYPE_ADDR => parse_kv(rdata).and_then(|(key, val_bytes)| {
-                let mut values = Vec::new();
-                let mut vpos = 0;
-                while vpos < val_bytes.len() {
-                    let slen = read_compact_size(val_bytes, &mut vpos)
-                        .map(|v| v as usize)?;
-                    if vpos + slen > val_bytes.len() { return Err("unexpected eof"); }
-                    let s = std::str::from_utf8(&val_bytes[vpos..vpos + slen])
-                        .map_err(|_| "invalid utf-8")?;
-                    values.push(s.to_string());
-                    vpos += slen;
-                }
-                if t == TYPE_ADDR {
-                    Ok(Record::Addr { key, value: values })
-                } else {
-                    Ok(Record::Txt { key, value: values })
-                }
-            }),
-            TYPE_BLOB => parse_kv(rdata).map(|(key, val_bytes)| {
-                Record::Blob { key, value: val_bytes.to_vec() }
-            }),
-            _ => Ok(Record::Unknown { rtype: t, rdata: rdata.to_vec() }),
-        };
-
-        self.index += 1;
-        Some(record)
-    }
-}
-
-// -- helpers --
-
-fn parse_kv(data: &[u8]) -> Result<(String, &[u8]), &'static str> {
-    if data.is_empty() { return Err("empty data"); }
-    let kl = data[0] as usize;
-    if 1 + kl > data.len() { return Err("key length exceeds data"); }
-    let key = std::str::from_utf8(&data[1..1 + kl]).map_err(|_| "invalid key")?;
-    if key.is_empty() || !key.bytes().all(|b| matches!(b, b'a'..=b'z' | b'0'..=b'9' | b'-')) {
-        return Err("invalid key: must be lowercase ascii, digits, or hyphens");
-    }
-    Ok((key.to_string(), &data[1 + kl..]))
+    Ok(records)
 }
 
 fn read_compact_size(data: &[u8], pos: &mut usize) -> Result<u64, &'static str> {
