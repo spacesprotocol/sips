@@ -267,6 +267,10 @@ The SIG record enables off-chain authentication of record sets. By requiring it 
 
 Bitcoin CompactSize is used for both the data length field and the SEQ version, keeping the common case (small values) to a single overhead byte while supporting the full <code>u64</code> range.
 
+SName uses DNS wire-style encoding but limits labels to 62 bytes rather than
+DNS's 63. This leaves room for a reserved prefix character such as <code>@</code>
+in the outermost label, enabling a future SIP to map spaces into DNS-compatible
+namespaces without colliding with ICANN TLDs.
 
 ==Backwards Compatibility==
 
