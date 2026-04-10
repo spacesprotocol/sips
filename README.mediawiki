@@ -23,13 +23,6 @@ Those proposing changes should consider that ultimately, consent may rest with t
 | Process
 | Active
 |-
-| [[sip-0002.mediawiki|2]]
-| 
-| Bitcoin-Anchored DNS Resolution
-| @buffrr
-| Standard
-| Draft
-|-
 | [[sip-0007.mediawiki|7]]
 |
 | Records wire format
